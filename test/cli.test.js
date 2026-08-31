@@ -1,72 +1,89 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { runCli } from "../src/cli.js";
+import { createRepository, sink, trackAll, write } from "./helpers.js";
 
-function sink() {
-  let value = "";
-  return {
-    stream: { write(chunk) { value += chunk; } },
-    read() { return value; },
-  };
-}
-
-function repositoryWithLeak() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "ignore-drift-cli-"));
-  execFileSync("git", ["init", "-b", "main"], { cwd: root });
-  fs.writeFileSync(path.join(root, ".gitignore"), ".env\n");
-  fs.writeFileSync(path.join(root, ".dockerignore"), ".git\n");
-  fs.writeFileSync(path.join(root, ".env"), "TOKEN=secret\n");
-  execFileSync("git", ["add", ".gitignore", ".dockerignore"], { cwd: root });
+function repositoryWithDockerLeak() {
+  const root = createRepository();
+  write(root, ".gitignore", ".env\n");
+  write(root, ".dockerignore", ".git\n");
+  write(root, "Dockerfile", "FROM scratch\n");
+  write(root, ".env", "TOKEN=secret\n");
+  trackAll(root);
   return root;
 }
 
-test("JSON output is machine-readable and errors fail by default", () => {
-  const root = repositoryWithLeak();
+function invoke(args, cwd) {
   const stdout = sink();
   const stderr = sink();
-
-  const exitCode = runCli(["check", root, "--json"], {
+  const exitCode = runCli(args, {
     stdout: stdout.stream,
     stderr: stderr.stream,
-    cwd: root,
+    cwd,
   });
-  const result = JSON.parse(stdout.read());
+  return { exitCode, stdout: stdout.read(), stderr: stderr.read() };
+}
 
-  assert.equal(exitCode, 1);
-  assert.equal(stderr.read(), "");
+test("JSON output has a stable schema and errors fail by default", () => {
+  const root = repositoryWithDockerLeak();
+  const output = invoke(["check", root, "--json"], root);
+  const result = JSON.parse(output.stdout);
+
+  assert.equal(output.exitCode, 1);
+  assert.equal(output.stderr, "");
+  assert.equal(result.schemaVersion, 2);
   assert.equal(result.findings[0].code, "ID001");
 });
 
 test("--fail-on never keeps findings informational", () => {
-  const root = repositoryWithLeak();
-  const stdout = sink();
-  const stderr = sink();
+  const root = repositoryWithDockerLeak();
+  const output = invoke([root, "--fail-on", "never"], root);
 
-  const exitCode = runCli([root, "--fail-on", "never"], {
-    stdout: stdout.stream,
-    stderr: stderr.stream,
-    cwd: root,
-  });
-
-  assert.equal(exitCode, 0);
-  assert.match(stdout.read(), /ERROR ID001 \.env/);
-  assert.equal(stderr.read(), "");
+  assert.equal(output.exitCode, 0);
+  assert.match(output.stdout, /ERROR ID001 \.env \[docker\]/);
 });
 
-test("unknown options return a usage error", () => {
-  const stdout = sink();
-  const stderr = sink();
+test("SARIF output contains valid tool and result records", () => {
+  const root = repositoryWithDockerLeak();
+  const output = invoke([root, "--format", "sarif", "--fail-on", "never"], root);
+  const sarif = JSON.parse(output.stdout);
 
-  const exitCode = runCli(["--wat"], {
-    stdout: stdout.stream,
-    stderr: stderr.stream,
-  });
+  assert.equal(output.exitCode, 0);
+  assert.equal(sarif.version, "2.1.0");
+  assert.equal(sarif.runs[0].tool.driver.name, "ignore-drift");
+  assert.equal(sarif.runs[0].results[0].ruleId, "ID001");
+});
 
-  assert.equal(exitCode, 2);
-  assert.match(stderr.read(), /Unknown option/);
+test("GitHub format emits native workflow annotations", () => {
+  const root = repositoryWithDockerLeak();
+  const output = invoke([root, "--format", "github", "--fail-on", "never"], root);
+
+  assert.match(output.stdout, /^::error file=\.env,title=ID001 docker exposure::/);
+});
+
+test("init creates policy once and refuses to overwrite it", () => {
+  const root = createRepository();
+  write(root, "README.md");
+  trackAll(root);
+
+  const first = invoke(["init", root], root);
+  const second = invoke(["init", root], root);
+  const config = JSON.parse(fs.readFileSync(path.join(root, ".ignore-drift.json"), "utf8"));
+
+  assert.equal(first.exitCode, 0);
+  assert.equal(config.surfaces.docker, "auto");
+  assert.equal(second.exitCode, 2);
+  assert.match(second.stderr, /already exists/);
+});
+
+test("unknown surfaces and options return usage errors", () => {
+  const root = createRepository();
+  write(root, "README.md");
+  trackAll(root);
+
+  assert.equal(invoke([root, "--surface", "zip"], root).exitCode, 2);
+  assert.equal(invoke(["--wat"], root).exitCode, 2);
 });

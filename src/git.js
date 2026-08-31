@@ -41,7 +41,10 @@ export function findRepositoryRoot(startDirectory = process.cwd()) {
   return path.resolve(result.stdout.trim());
 }
 
-export function listGitPaths(root, { maxPaths = 50_000 } = {}) {
+export function listGitPaths(
+  root,
+  { maxPaths = 50_000, ignoredDirectoryFilter = () => true } = {},
+) {
   const tracked = splitNull(
     runGit(root, ["ls-files", "-z", "--cached"]).stdout,
   );
@@ -49,7 +52,7 @@ export function listGitPaths(root, { maxPaths = 50_000 } = {}) {
     runGit(root, ["ls-files", "-z", "--others", "--exclude-standard"])
       .stdout,
   );
-  const ignored = splitNull(
+  const ignoredBoundaries = splitNull(
     runGit(root, [
       "ls-files",
       "-z",
@@ -60,6 +63,27 @@ export function listGitPaths(root, { maxPaths = 50_000 } = {}) {
       "--no-empty-directory",
     ]).stdout,
   );
+  const ignoredDirectories = ignoredBoundaries.filter((pathname) =>
+    pathname.endsWith("/"),
+  );
+  const ignored = ignoredBoundaries.filter((pathname) => !pathname.endsWith("/"));
+  const relevantDirectories = ignoredDirectories.filter(ignoredDirectoryFilter);
+  for (let index = 0; index < relevantDirectories.length; index += 200) {
+    const batch = relevantDirectories.slice(index, index + 200);
+    ignored.push(
+      ...splitNull(
+        runGit(root, [
+          "ls-files",
+          "-z",
+          "--others",
+          "--ignored",
+          "--exclude-standard",
+          "--",
+          ...batch,
+        ]).stdout,
+      ),
+    );
+  }
 
   const paths = new Map();
   for (const pathname of ignored) {
@@ -84,6 +108,9 @@ export function listGitPaths(root, { maxPaths = 50_000 } = {}) {
     paths: sorted.slice(0, maxPaths),
     totalPaths: sorted.length,
     truncated: sorted.length > maxPaths,
+    ignoredDirectories: relevantDirectories.sort((left, right) =>
+      left.length - right.length || left.localeCompare(right),
+    ),
   };
 }
 

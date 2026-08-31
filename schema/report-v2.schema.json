@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/sushinaito/ignore-drift/v1.0.0/schema/report-v2.schema.json",
+  "title": "ignore-drift report v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "root", "config", "surfaces", "stats", "findings", "allowedFindings"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "root": { "type": "string" },
+    "config": { "type": ["string", "null"] },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["docker", "npm"],
+      "properties": {
+        "docker": {
+          "type": "object",
+          "required": ["active"],
+          "properties": {
+            "active": { "type": "boolean" },
+            "ignoreFile": { "type": ["string", "null"] },
+            "dockerfile": { "type": ["string", "null"] }
+          }
+        },
+        "npm": {
+          "type": "object",
+          "required": ["active"],
+          "properties": {
+            "active": { "type": "boolean" },
+            "package": { "type": "string" },
+            "fileCount": { "type": "integer", "minimum": 0 },
+            "unpackedSize": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pathsScanned", "totalPaths", "truncated", "errors", "warnings", "allowed"],
+      "properties": {
+        "pathsScanned": { "type": "integer", "minimum": 0 },
+        "totalPaths": { "type": "integer", "minimum": 0 },
+        "truncated": { "const": false },
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "allowed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "allowedFindings": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/finding" },
+          {
+            "type": "object",
+            "required": ["allowance"],
+            "properties": {
+              "allowance": {
+                "type": "object",
+                "required": ["path", "reason"],
+                "properties": {
+                  "path": { "type": "string" },
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["code", "surface", "severity", "path", "git", "exposure", "message", "suggestion"],
+      "properties": {
+        "code": { "enum": ["ID001", "ID101"] },
+        "surface": { "enum": ["docker", "npm"] },
+        "severity": { "enum": ["error", "warning"] },
+        "path": { "type": "string" },
+        "git": { "const": "ignored" },
+        "exposure": { "const": "included" },
+        "message": { "type": "string" },
+        "suggestion": { "type": "string" }
+      }
+    }
+  }
+}

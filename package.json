@@ -1,26 +1,43 @@
 {
   "name": "ignore-drift",
-  "version": "0.1.0",
-  "description": "Catch Git and Docker ignore mismatches before secrets leak or builds break.",
+  "version": "1.0.0",
+  "description": "Audit which Git-ignored files escape into Docker contexts and npm packages.",
   "type": "module",
   "bin": {
     "ignore-drift": "bin/ignore-drift.js"
   },
-  "exports": "./src/index.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    }
+  },
+  "types": "./src/index.d.ts",
   "files": [
     "bin",
     "src",
+    "schema",
+    "docs",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "RELEASING.md",
+    "SECURITY.md",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
     "test": "node --test",
+    "types": "tsc --noEmit",
     "lint": "node --check bin/ignore-drift.js && node --check src/*.js && node --check test/*.js",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm run types && npm test",
+    "prepublishOnly": "npm run check"
   },
   "keywords": [
     "dockerignore",
     "gitignore",
+    "npmignore",
+    "supply-chain",
     "docker",
     "security",
     "cli"
@@ -38,7 +55,17 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
-    "@balena/dockerignore": "1.0.2"
+    "@balena/dockerignore": "1.0.2",
+    "picomatch": "4.0.7"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "typescript": "7.0.2"
   }
 }
