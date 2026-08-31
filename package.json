@@ -29,7 +29,7 @@
   "scripts": {
     "test": "node --test",
     "types": "tsc --noEmit",
-    "lint": "node --check bin/ignore-drift.js && node --check src/*.js && node --check test/*.js",
+    "lint": "node scripts/check-syntax.js",
     "check": "npm run lint && npm run types && npm test",
     "prepublishOnly": "npm run check"
   },
