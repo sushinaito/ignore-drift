@@ -39,18 +39,23 @@ export function loadNpmPackage(root) {
     );
   }
 
-  const executable = process.platform === "win32" ? "npm.cmd" : "npm";
+  const npmArguments = ["pack", "--dry-run", "--json", "--ignore-scripts"];
+  const executable = process.platform === "win32"
+    ? process.env.ComSpec || "cmd.exe"
+    : "npm";
+  // Windows cannot execute a .cmd shim directly. The command contains only
+  // fixed literals; the repository path remains a separate cwd option.
+  const commandArguments = process.platform === "win32"
+    ? ["/d", "/s", "/c", `npm.cmd ${npmArguments.join(" ")}`]
+    : npmArguments;
   const result = spawnSync(
     executable,
-    ["pack", "--dry-run", "--json", "--ignore-scripts"],
+    commandArguments,
     {
       cwd: root,
       encoding: "utf8",
       maxBuffer: MAX_NPM_OUTPUT,
       env: { ...process.env, npm_config_update_notifier: "false" },
-      // Windows command shims are .cmd files and require a command shell.
-      // Every argument is a fixed literal; repository paths are passed as cwd.
-      shell: process.platform === "win32",
     },
   );
 

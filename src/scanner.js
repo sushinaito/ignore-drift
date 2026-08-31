@@ -40,7 +40,7 @@ function canonicalPath(pathname) {
     existingAncestor = parent;
   }
 
-  return path.join(fs.realpathSync(existingAncestor), ...missingSegments);
+  return path.join(fs.realpathSync.native(existingAncestor), ...missingSegments);
 }
 
 function isSensitive(pathname, customPatterns) {
