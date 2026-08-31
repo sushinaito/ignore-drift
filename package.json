@@ -1,0 +1,44 @@
+{
+  "name": "ignore-drift",
+  "version": "0.1.0",
+  "description": "Catch Git and Docker ignore mismatches before secrets leak or builds break.",
+  "type": "module",
+  "bin": {
+    "ignore-drift": "bin/ignore-drift.js"
+  },
+  "exports": "./src/index.js",
+  "files": [
+    "bin",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "lint": "node --check bin/ignore-drift.js && node --check src/*.js && node --check test/*.js",
+    "check": "npm run lint && npm test"
+  },
+  "keywords": [
+    "dockerignore",
+    "gitignore",
+    "docker",
+    "security",
+    "cli"
+  ],
+  "author": "sushinaito",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sushinaito/ignore-drift.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sushinaito/ignore-drift/issues"
+  },
+  "homepage": "https://github.com/sushinaito/ignore-drift#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@balena/dockerignore": "1.0.2"
+  }
+}
