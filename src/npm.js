@@ -48,6 +48,9 @@ export function loadNpmPackage(root) {
       encoding: "utf8",
       maxBuffer: MAX_NPM_OUTPUT,
       env: { ...process.env, npm_config_update_notifier: "false" },
+      // Windows command shims are .cmd files and require a command shell.
+      // Every argument is a fixed literal; repository paths are passed as cwd.
+      shell: process.platform === "win32",
     },
   );
 

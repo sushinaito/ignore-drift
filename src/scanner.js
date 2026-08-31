@@ -204,7 +204,7 @@ function compareCandidate(candidate, surfaces, config, ignoredDirectories = []) 
 }
 
 export function scanRepository(startDirectory = process.cwd(), options = {}) {
-  const root = findRepositoryRoot(startDirectory);
+  const root = canonicalPath(findRepositoryRoot(startDirectory));
   const config = loadConfig(root, options.configPath);
   const surfaces = prepareSurfaces(root, config, options);
   const hasActiveSurface = Boolean(surfaces.docker || surfaces.npm);
@@ -294,7 +294,7 @@ export function explainPath(
     ...options
   } = {},
 ) {
-  const root = findRepositoryRoot(startDirectory);
+  const root = canonicalPath(findRepositoryRoot(startDirectory));
   const config = loadConfig(root, options.configPath);
   const surfaces = prepareSurfaces(root, config, options);
   const canonicalBase = canonicalPath(baseDirectory);

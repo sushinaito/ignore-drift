@@ -24,6 +24,6 @@ test("release-facing version references stay synchronized", () => {
 
 test("the packaged CLI entry point remains executable", () => {
   const mode = fs.statSync(new URL("bin/ignore-drift.js", root)).mode;
-  assert.notEqual(mode & 0o111, 0);
+  if (process.platform !== "win32") assert.notEqual(mode & 0o111, 0);
   assert.match(read("bin/ignore-drift.js"), /^#!\/usr\/bin\/env node/);
 });
